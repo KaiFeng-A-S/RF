@@ -6,9 +6,19 @@
 #include <fstream>
 #include <sstream>
 #include "input_data.hpp"
+#include "metrics.hpp"
 
 using namespace std;
 using namespace FK;
+
+string* default_feature_names(int num){
+    string *names = new string[num];
+    for(int i = 0; i < num ;i++){
+        names[i] = "feature_" + to_string(i + 1);
+    }
+
+    return names;
+}
 
 int main(){
 
@@ -61,7 +71,18 @@ int main(){
     string line;
     vector<float *> datas;
     int num_1;
+
+/*
+    int _c_ = 0;
+*/
+
     while(getline(fin_X, line)){
+
+/*
+        if((_c_ % 10000) == 0) {cout<<(_c_ / 10000)<<endl;}
+        _c_++;
+*/
+
         float **data_line = (float **)malloc(sizeof(float *));
         num_1 = get_data_from_csv(line, data_line);
         datas.push_back(*data_line);
@@ -78,7 +99,18 @@ int main(){
     ifstream fin_y("/data/fengkai/GPGPU/s_y.csv");
     vector<int *> labels;
     int num_2;
+
+/*
+    _c_ = 0;
+*/
+
     while(getline(fin_y, line)){
+
+/*
+        if((_c_ % 10000) == 0) {cout<<(_c_ / 10000)<<endl;}
+        _c_++;
+*/
+
         int **label_line = (int **)malloc(sizeof(int *));
         num_2 = get_label_from_csv(line, label_line);
         labels.push_back(*label_line);
@@ -92,7 +124,14 @@ int main(){
     }
 */
 
-    string feature_names[2] = {"feature_1, feature_2"};
+    string *feature_names = default_feature_names(num_1);
+
+/*
+    for(int j = 0; j < 10; j++){
+        cout<<feature_names[j]<<endl;
+    }
+*/
+
     float **input_data = (float **)malloc(datas.size() * sizeof(float *));
     memcpy(input_data, &datas[0], datas.size() * sizeof(float *));
     int *input_label = (int *)malloc(labels.size() * sizeof(int));
@@ -118,7 +157,30 @@ int main(){
     cout<<tree.label<<endl;
 */
 
-    tree.Learn(2, 1e-4);
+    tree.Learn(100, 0);
+
+    cout<<"Learn finished"<<endl;
+
+    cv::Mat *predict_data_ = &tree.data;
+    cv::Mat *predict_label_ = &tree.label;
+    int *predictions = tree.Predict(predict_data_, predict_label_);
+
+    cout<<"Predict finished"<<endl;
+
+    int tmp_height = predict_label_->size().height;
+    int y_true[tmp_height];
+
+    for(int i = 0; i < tmp_height; i++){
+        y_true[i] = predict_label_->at<int>(i, 0);
+    }
+
+    for(int i = 0; i < tmp_height; i++){
+        cout<<y_true[i]<<" "<<predictions[i]<<endl;
+    }
+
+    float acc = accuracy_score(y_true, predictions, tmp_height, true);
+
+    cout<<acc<<endl;
 
     return 0;
 }

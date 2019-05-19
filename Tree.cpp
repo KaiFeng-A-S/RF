@@ -6,6 +6,7 @@
 #include <opencv2/core.hpp>
 #include "Tree.hpp"
 #include "debug.hpp"
+#include "metrics.hpp"
 
 using namespace std;
 
@@ -22,10 +23,10 @@ void FK::Tree::split_data(int index, float threshold, cv::Mat *original, cv::Mat
     }
 */
 
-    cv::Mat *_first_ = new cv::Mat(0, tmp_width, CV_64FC1);
-    cv::Mat *_second_ = new cv::Mat(0, tmp_width, CV_64FC1);
-    cv::Mat *_first_label_ = new cv::Mat(0, 1, CV_64FC1);
-    cv::Mat *_second_label_ = new cv::Mat(0, 1, CV_64FC1);
+    cv::Mat *_first_ = new cv::Mat(0, tmp_width, CV_32FC1);
+    cv::Mat *_second_ = new cv::Mat(0, tmp_width, CV_32FC1);
+    cv::Mat *_first_label_ = new cv::Mat(0, 1, CV_32FC1);
+    cv::Mat *_second_label_ = new cv::Mat(0, 1, CV_32FC1);
 
     for(int i = 0; i < tmp_height; i++){
         if(original->at<float>(i, index) <= threshold){
@@ -70,13 +71,18 @@ void FK::Tree::split_data(int index, float threshold, cv::Mat *original, cv::Mat
     *second = _second_;
     *first_label = _first_label_;
     *second_label = _second_label_;
+
+/*
+    cout<<(*first)->size()<<endl;
+    cout<<(*second)->size()<<endl;
+*/
+
 } 
 
-float FK::Tree::Gini(cv::Mat *_data_, cv::Mat *_label_, int index, int *return_counts){
-    cv::Mat tmp_mat = _data_->col(index);
+float FK::Tree::Gini(cv::Mat *_data_, cv::Mat *_label_, int *return_counts){
     int counts[class_number] = {0};
     float purity = 0.0;
-    int tmp_height = tmp_mat.size().height;
+    int tmp_height = _data_->size().height;
 
 /*
     for(int i = 0; i < class_number; i++){
@@ -103,12 +109,22 @@ float FK::Tree::get_minimum_gini(cv::Mat *_data_, cv::Mat *_label_, int index, f
     cv::Mat _index_;
     int tmp_height = tmp_mat.size().height;
     vector<float> ginis;
+
+/*
+    cout<<"tmp_mat size: "<<tmp_mat.size()<<endl;
+*/
+
     cv::sortIdx(tmp_mat, _index_, CV_SORT_EVERY_COLUMN + CV_SORT_ASCENDING);
     cv::sort(tmp_mat, tmp_mat, CV_SORT_EVERY_COLUMN + CV_SORT_ASCENDING);
+
+/*
+    cout<<tmp_mat<<endl;
+*/
+
     cv::Mat re_label(_label_->size(), _label_->type());
     reorder(_label_, &re_label, &_index_, 0);
     int counts[class_number] = {0};
-    float original_gini = Gini(_data_, &re_label, index, counts);
+    float original_gini = Gini(&tmp_mat, &re_label, counts);
 
 /*
     for(int i = 0; i < class_number; i++){
@@ -187,8 +203,11 @@ float FK::Tree::get_minimum_gini(cv::Mat *_data_, cv::Mat *_label_, int index, f
     float minimum = ginis[minimum_index];
     *gain = original_gini - minimum;
 
+/*
     cout<<"minimum index: "<<minimum_index<<endl;
     cout<<"minimum: "<<minimum<<endl;
+    cout<<"threshold: "<<*return_threshold<<endl;
+*/
 
     return minimum;
 }
@@ -203,6 +222,10 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
     }
 
     FK::Tree::TreeNode *root = (FK::Tree::TreeNode *)malloc(sizeof(FK::Tree::TreeNode));
+
+/*
+    cout<<root<<endl;
+*/
 
     //for each feature
     int feature_number = features.size();
@@ -238,12 +261,23 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
 */
 
     root->Attribute = &features[feature_index];
+    root->index = feature_index;
     root->is_leaf = false;
     root->gain = _gain_;
     root->threshold = return_threshold;
 
-    if(_gain_ < EPSILON){
-        return NULL;
+    if(_gain_ <= EPSILON){
+        root->is_leaf = true;
+        int counts[class_number] = {0};
+        int tmp_height = _label_->size().height;
+        for(int i = 0; i < tmp_height; i++){
+            _label_->at<int>(i, 0);
+            counts[_label_->at<int>(i, 0)]++;
+        }
+        int maximum_index = max_element(counts, counts + class_number) - counts;
+        root->classification = maximum_index;
+        
+        return root;
     }
 
     cv::Mat *first;
@@ -251,10 +285,34 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
     cv::Mat *first_label;
     cv::Mat *second_label;
 
-    split_data(feature_index, return_threshold, _data_, _label_, &first, &second, &first_label, &second_label);   
+    split_data(feature_index, return_threshold, _data_, _label_, &first, &second, &first_label, &second_label);
+
+/*
+    cout<<first->size()<<endl;
+    cout<<first_label->size()<<endl;
+    cout<<second->size()<<endl;
+    cout<<second_label->size()<<endl; 
+*/
 
     root->lch_index = BuildTree(depth + 1, first, first_label);
     root->rch_index = BuildTree(depth + 1, second, second_label);
+
+    if((root->lch_index == NULL) && (root->rch_index == NULL)){root->is_leaf = true;}
+
+    if(root->is_leaf){
+        int counts[class_number] = {0};
+        int tmp_height = _label_->size().height;
+        for(int i = 0; i < tmp_height; i++){
+            _label_->at<int>(i, 0);
+            counts[_label_->at<int>(i, 0)]++;
+        }
+        int maximum_index = max_element(counts, counts + class_number) - counts;
+        root->classification = maximum_index;
+    }
+
+/*
+    cout<<"depth: "<<depth<<endl;
+*/
 
     return root;
 }
@@ -277,4 +335,33 @@ void FK::Tree::Learn(int max_depth, float epsilon){
     MAX_DEPTH = max_depth;
     EPSILON = epsilon;
     root = BuildTree(1, &data, &label);
+}
+
+int FK::Tree::forward(cv::Mat &_row_){
+    FK::Tree::TreeNode *node = root;
+    FK::Tree::TreeNode *tmp_node;
+    while(!node->is_leaf){
+        int index = node->index;
+        float value = _row_.at<float>(0, index);
+        tmp_node = (value <= node->threshold) ? node->lch_index : node->rch_index;
+        if(tmp_node == NULL){break;}
+        else{node = tmp_node;}
+    }
+
+    return node->classification;
+}
+
+int* FK::Tree::Predict(float **_data_, int *_label_, int length){
+    return NULL;
+}
+
+int* FK::Tree::Predict(cv::Mat *_data_, cv::Mat *_label_){
+    int tmp_height = _label_->size().height;
+    int *Prediction = (int *)malloc(tmp_height * sizeof(int));
+    for(int i = 0; i < tmp_height; i++){
+        cv::Mat _row_ = _data_->row(i);
+        Prediction[i] = forward(_row_);
+    }
+
+    return Prediction;
 }
