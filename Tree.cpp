@@ -7,6 +7,10 @@
 #include "Tree.hpp"
 #include "debug.hpp"
 #include "metrics.hpp"
+#include "bitonic_sort.h"
+#include <climits>
+
+#define USE_CPU(A, B) ((A < THRESHOLD_LENGTH) && (B))
 
 using namespace std;
 
@@ -364,4 +368,78 @@ int* FK::Tree::Predict(cv::Mat *_data_, cv::Mat *_label_){
     }
 
     return Prediction;
+}
+
+template <class T>
+T* FK::Tree::col_to_array(cv::Mat *_data_, int index){
+    int tmp_height = _data_->size().height;
+    int pow = 1;
+    while(pow < tmp_height){pow <<= 1;}
+
+    T* _array_  = (T *)malloc(pow * sizeof(T *));
+
+    for(int i = 0; i < tmp_height; i++){
+        _array_[i] = _data_->at<T>(i, index);
+    }
+
+    return _array_;
+}
+
+float FK::Tree::Gini_with_GPU(float *_dat_, int *_label_, int *return_counts){
+    return 0.0;
+}
+
+float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain){
+    int tmp_height = _label_->size().height;
+    float *tmp_data = col_to_array<float>(_data_, index);
+    int *tmp_label = col_to_array<int>(_label_, 0);
+
+/*
+    for(int i = 0; i < tmp_height; i++){
+        cout<<_data_->at<float>(i, index)<<" "<<tmp_data[i]<<endl;
+        cout<<_label_->at<int>(i, 0)<<" "<<tmp_label[i]<<endl;
+    }
+*/
+    int pow = 1;
+    while(pow < tmp_height){pow <<= 1;}
+    bitonic_sort_with_follower(tmp_data, tmp_label, pow, tmp_height, pow / THREADS, THREADS);
+
+    int counts[class_number] = {0};
+    float original_gini = Gini_with_GPU(tmp_data, tmp_label, counts);
+
+    return 0.0;
+}
+
+FK::Tree::TreeNode* FK::Tree::BuildTree_with_GPU(int depth, cv::Mat *_data_, cv::Mat *_label_, bool with_cpu){
+    if(depth > MAX_DEPTH){
+        return NULL;
+    }
+
+    int tmp_height = _label_->size().height;
+
+    if(USE_CPU(tmp_height, with_cpu)){
+        return BuildTree(depth, _data_, _label_);
+    }
+
+    FK::Tree::TreeNode *root = (FK::Tree::TreeNode *)malloc(sizeof(FK::Tree::TreeNode));
+
+    int feature_number = features.size();
+    int feature_index = 0;
+    float minimum = 1.0;
+    float return_threshold;
+    float return_thres_tmp;
+    float _gain_;
+    float gain_tmp;
+
+    for(int i = 0; i < feature_number; i++){
+        float mini_tmp = get_minimum_gini_with_GPU(_data_, _label_, i, &return_thres_tmp, &gain_tmp);
+        if(mini_tmp < minimum){
+            minimum = mini_tmp;
+            feature_index = i;
+            return_threshold = return_thres_tmp;
+            _gain_ = gain_tmp;
+        }
+    }
+
+    return root;
 }

@@ -174,13 +174,17 @@ int main(){
         y_true[i] = predict_label_->at<int>(i, 0);
     }
 
+/*
     for(int i = 0; i < tmp_height; i++){
         cout<<y_true[i]<<" "<<predictions[i]<<endl;
     }
+*/
 
     float acc = accuracy_score(y_true, predictions, tmp_height, true);
 
-    cout<<acc<<endl;
+    cout<<"accuracy is: "<<acc<<endl;
+
+    tree.get_minimum_gini_with_GPU(&tree.data, &tree.label, 0, NULL, NULL);
 
     return 0;
 }

@@ -34,6 +34,8 @@ namespace FK{
               cv::Mat label;
               int class_number;
               int MAX_DEPTH;
+              int THRESHOLD_LENGTH;
+              int THREADS;
               float EPSILON;
 
               Tree(){
@@ -51,6 +53,8 @@ namespace FK{
 */
 
                   MAX_DEPTH = -1;
+                  THRESHOLD_LENGTH = 4096;
+                  THREADS = 512;
               }
 
 /*
@@ -100,12 +104,19 @@ namespace FK{
 
               void get_class_number();
 
+              float Gini_with_GPU(float *_dat_, int *_label_, int *return_counts);
+
+              float get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain);
+
               TreeNode* BuildTree_with_GPU(int depth, cv::Mat *_data_, cv::Mat *_label_, bool with_cpu);
 
               void Learn_with_GPU(int max_depth, float epsilon, bool with_cpu);
 
         private:
                void reorder(cv::Mat *_original_, cv::Mat *_new_, cv::Mat *_index_, int index);
+
+               template <class T>
+               T* col_to_array(cv::Mat *_data_, int index);
     };
 }
 
