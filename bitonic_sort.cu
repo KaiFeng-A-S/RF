@@ -1,5 +1,7 @@
 #include <cuda_runtime.h>
 #include <float.h>
+#include <limits.h>
+#include <iostream>
 
 __global__ void bitonic_sort_step(float *dev_values, int j, int k){
     unsigned int i = threadIdx.x + blockDim.x * blockIdx.x;
@@ -51,11 +53,12 @@ __global__ void bitonic_sort_step_with_follower(float *dev_values, int *dev_foll
     }
 }
 
-__global__ void max_padding(float *dev_values, int length){
+__global__ void max_padding(float *dev_values, int *dev_followers, int length){
     unsigned int i = threadIdx.x + blockDim.x * blockIdx.x;
 
     if(i >= length){
         dev_values[i] = FLT_MAX;
+        dev_followers[i] = INT_MAX;
     }
 }
 
@@ -85,13 +88,19 @@ void bitonic_sort_with_follower(float *values, int *followers, int NUM_ORIGINAL,
     size_t size_values = NUM_VALS * sizeof(float);
     size_t size_followers = NUM_VALS * sizeof(int);
 
-    cudaMalloc((void **)&dev_values, size_values);
-    cudaMemcpy(dev_values, values, size_followers, cudaMemcpyHostToDevice);
+    cudaError_t error = cudaMalloc((void **)&dev_values, size_values);
+    //std::cout<<error<<std::endl;
+    error = cudaMalloc((void **)&dev_followers, size_followers);
+    //std::cout<<error<<std::endl;
+    error = cudaMemcpy(dev_values, values, size_values, cudaMemcpyHostToDevice);
+    //std::cout<<error<<std::endl;
+    error = cudaMemcpy(dev_followers, followers, size_followers, cudaMemcpyHostToDevice);
+    //std::cout<<error<<std::endl;
 
     dim3 blocks(BLOCKS, 1);
     dim3 threads(THREADS, 1);
 
-    max_padding<<<blocks, threads>>>(dev_values, NUM_ORIGINAL);
+    max_padding<<<blocks, threads>>>(dev_values, dev_followers, NUM_ORIGINAL);
 
     for(int k = 2; k <= NUM_VALS; k <<= 1){
         for(int j = (k >> 1); j > 0; j >>= 1){
@@ -99,8 +108,13 @@ void bitonic_sort_with_follower(float *values, int *followers, int NUM_ORIGINAL,
         }
     }
 
-    cudaMemcpy(values, dev_values, size_values, cudaMemcpyDeviceToHost);
-    cudaMemcpy(followers, dev_followers, size_followers, cudaMemcpyDeviceToHost);
-    cudaFree(dev_values);
+    error = cudaMemcpy(values, dev_values, size_values, cudaMemcpyDeviceToHost);
+    //std::cout<<error<<std::endl;
+    error = cudaMemcpy(followers, dev_followers, size_followers, cudaMemcpyDeviceToHost);
+    //std::cout<<dev_values<<std::endl;
+    //std::cout<<dev_followers<<std::endl;
+    error = cudaFree(dev_values);
+    std::cout<<error<<std::endl;
     cudaFree(dev_followers);
+    //std::cout<<error<<std::endl;
 }

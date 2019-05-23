@@ -54,7 +54,7 @@ namespace FK{
 
                   MAX_DEPTH = -1;
                   THRESHOLD_LENGTH = 4096;
-                  THREADS = 512;
+                  THREADS = 32;
               }
 
 /*

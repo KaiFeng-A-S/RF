@@ -9,6 +9,7 @@
 #include "metrics.hpp"
 #include "bitonic_sort.h"
 #include <climits>
+#include "GPU_calculation.h"
 
 #define USE_CPU(A, B) ((A < THRESHOLD_LENGTH) && (B))
 
@@ -402,7 +403,11 @@ float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int
 */
     int pow = 1;
     while(pow < tmp_height){pow <<= 1;}
-    bitonic_sort_with_follower(tmp_data, tmp_label, pow, tmp_height, pow / THREADS, THREADS);
+    bitonic_sort_with_follower(tmp_data, tmp_label, tmp_height, pow,  pow / THREADS, THREADS);
+
+    for(int i = 0; i < tmp_height; i++){
+        cout<<tmp_data[i]<<endl;
+    }
 
     int counts[class_number] = {0};
     float original_gini = Gini_with_GPU(tmp_data, tmp_label, counts);
