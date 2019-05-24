@@ -36,6 +36,7 @@ namespace FK{
               int MAX_DEPTH;
               int THRESHOLD_LENGTH;
               int THREADS;
+              int DEFAULT_BLOCKS;
               float EPSILON;
 
               Tree(){
@@ -55,6 +56,7 @@ namespace FK{
                   MAX_DEPTH = -1;
                   THRESHOLD_LENGTH = 4096;
                   THREADS = 32;
+                  DEFAULT_BLOCKS = 24;
               }
 
 /*
@@ -104,7 +106,7 @@ namespace FK{
 
               void get_class_number();
 
-              float Gini_with_GPU(float *_dat_, int *_label_, int *return_counts);
+              float Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts);
 
               float get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain);
 

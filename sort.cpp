@@ -82,12 +82,15 @@ int main(){
     }
 
     cv::Mat tmp_mat(1, pow, CV_32FC1, values_2);
-    cout<<tmp_mat.size()<<endl;
+    //cout<<tmp_mat.size()<<endl;
     cv::Mat _index_;
     cv::sortIdx(tmp_mat, _index_, CV_SORT_EVERY_ROW + CV_SORT_ASCENDING);
     sort(values_3, values_3 + pow);
 
+/*
     for(int i = 0; i < pow; i++){
         cout<<values_1[i]<<" "<<values_2[i]<<" "<<followers[i]<<" "<<_index_.at<int>(0, i)<<endl;
     }
+*/
+
 }

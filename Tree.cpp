@@ -386,8 +386,16 @@ T* FK::Tree::col_to_array(cv::Mat *_data_, int index){
     return _array_;
 }
 
-float FK::Tree::Gini_with_GPU(float *_dat_, int *_label_, int *return_counts){
-    return 0.0;
+float FK::Tree::Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts){
+    gini_calculation(_label_, length, class_number, BLOCKS, THREADS, return_counts);
+
+    float purity = 0.0;
+    for(int i = 0; i < class_number; i++){
+        float class_prop = (float) return_counts[i] / length;
+        purity += class_prop * class_prop;
+    }
+
+    return 1 - purity;
 }
 
 float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain){
@@ -405,12 +413,17 @@ float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int
     while(pow < tmp_height){pow <<= 1;}
     bitonic_sort_with_follower(tmp_data, tmp_label, tmp_height, pow,  pow / THREADS, THREADS);
 
+/*
     for(int i = 0; i < tmp_height; i++){
         cout<<tmp_data[i]<<endl;
     }
+*/
 
     int counts[class_number] = {0};
-    float original_gini = Gini_with_GPU(tmp_data, tmp_label, counts);
+    int threads = THREADS < GINI_BLOCK_SIZE_MAX ? THREADS : GINI_BLOCK_SIZE_MAX;
+    float original_gini = Gini_with_GPU(tmp_label, tmp_height, DEFAULT_BLOCKS, threads, counts);
+
+    scan();
 
     return 0.0;
 }

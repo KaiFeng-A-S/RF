@@ -114,7 +114,7 @@ void bitonic_sort_with_follower(float *values, int *followers, int NUM_ORIGINAL,
     //std::cout<<dev_values<<std::endl;
     //std::cout<<dev_followers<<std::endl;
     error = cudaFree(dev_values);
-    std::cout<<error<<std::endl;
+    //std::cout<<error<<std::endl;
     cudaFree(dev_followers);
     //std::cout<<error<<std::endl;
 }
