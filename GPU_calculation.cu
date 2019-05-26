@@ -51,13 +51,21 @@ __global__ void ginis_scan(int *_label_, float *_gini_, int whole_size, int _num
     int ROUND = (whole_size / blockDim.x) + 1;
     __shared__ int XY[GINI_BLOCK_SIZE_MAX][CLASS_NUMBER_MAX];
 
+    for(int i = 0; i < _num_; i++){
+        XY[t][i] = 0;
+    }
+
     for(int n = 0; n < ROUND; n++){
+
+/*
         for(int i = 0; i < _num_; i++){
             XY[t][i] = 0;
         }
+*/
+
         int g = t + n * blockDim.x;
         if(g < whole_size){
-            XY[t][_label_[g]] = 1;
+            XY[t][_label_[g]] += 1;
         }
 
         __syncthreads();
@@ -71,8 +79,32 @@ __global__ void ginis_scan(int *_label_, float *_gini_, int whole_size, int _num
             }
             __syncthreads();
         }
-        for(){
+        for(int stride  = (blockDim.x / 4); stride > 0; stride >>= 1){
+            int index = (t + 1) * stride * 2 - 1;
+            if(index + stride < blockDim.x){
+                for(int i = 0; i < _num_; i++){
+                    XY[index + stride][i] += XY[index][i]
+                }
+            }
+            __syncthreads();
         }
+
+        float purity_l = 0.0;
+        for(int i = 0; i <_num_; i++){
+            float class_prop = (float) XY[t][i] / g;
+            purity_l += class_prop * class_prop;
+        }
+        float purity_r = 0.0;
+        for(int i = 0; i <_num_; i++){
+            float class_prop = (float) (count[i] - XY[t][i]) / (whole_size - g);
+            purity_r += class_prop * class_prop;
+        }
+        _gini_[g] = ((g / whole_size) * purity_l + ((whole_szie - g) / whole_size) * purity_r;
+
+        for(int i = 0; i < _num_; i++){
+            XY[t][i] = XY[blockDim.x][i];
+        }
+        __syncthreads();
     }
 } 
 
@@ -110,8 +142,25 @@ void gini_calculation(int *_label_, int whole_size, int _num_, int BLOCKS, int T
     }
 }
 
-float* ginis(int BLOCKS, int THREADS){
+void ginis(int *_label_, int *count, int whole_size, int _num_, int THREADS, float *return_ginis){
     int *dev_label;
+    int *dev_count
     size_t size_labels = whole_size * sizeof(int);
+    size_t size_counts = _num_ * sizeof(int);
     cudaMalloc((void **)&dev_label, size_labels);
+    cudaMalloc((void **)&dev_count, size_count);
+    cudaMemcpy(dev_label, _label_, size_labels, cudaMemcpyHostToDevice);
+    cudaMemcpy(dev_count, count, size_counts, cudaMemcpyHostToDevice);
+
+    float *dev_gini;
+    size_t size_ginis = whole_size * sizeof(float);
+    cudaMalloc((void **)&dev_gini, size_ginis);    
+
+    dim3 blocks(1, 1)
+    dim3 threads(THREADS, 1);
+    gini_scan<<<blocks, threads>>>(dev_label, count, dev_gini, whole_size, _num_);
+    
+    cudaMemcpy(return_ginis, dev_gini, size_ginis, cudaMemcpyDeviceToHost);
+    cudaFree(dev_label);
+    cudaFree(dev_count);
 }
