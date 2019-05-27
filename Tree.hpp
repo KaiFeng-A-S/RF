@@ -106,7 +106,9 @@ namespace FK{
 
               void get_class_number();
 
-              float Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts);
+              void Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts);
+
+              float* Ginis_with_GPU(int *_label_, int length, int THREADS, int *count);
 
               float get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain);
 
@@ -119,6 +121,8 @@ namespace FK{
 
                template <class T>
                T* col_to_array(cv::Mat *_data_, int index);
+
+               void add_leaf(FK::Tree::TreeNode *root, cv::Mat *_label_);
     };
 }
 

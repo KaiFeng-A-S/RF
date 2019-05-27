@@ -272,6 +272,8 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
     root->threshold = return_threshold;
 
     if(_gain_ <= EPSILON){
+
+/*
         root->is_leaf = true;
         int counts[class_number] = {0};
         int tmp_height = _label_->size().height;
@@ -281,7 +283,10 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
         }
         int maximum_index = max_element(counts, counts + class_number) - counts;
         root->classification = maximum_index;
-        
+*/
+
+        add_leaf(root, _label_);
+                
         return root;
     }
 
@@ -302,8 +307,11 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
     root->lch_index = BuildTree(depth + 1, first, first_label);
     root->rch_index = BuildTree(depth + 1, second, second_label);
 
-    if((root->lch_index == NULL) && (root->rch_index == NULL)){root->is_leaf = true;}
+    if((root->lch_index == NULL) && (root->rch_index == NULL)){
+        add_leaf(root, _label_);
+    }
 
+/*
     if(root->is_leaf){
         int counts[class_number] = {0};
         int tmp_height = _label_->size().height;
@@ -314,6 +322,7 @@ FK::Tree::TreeNode* FK::Tree::BuildTree(int depth, cv::Mat *_data_, cv::Mat *_la
         int maximum_index = max_element(counts, counts + class_number) - counts;
         root->classification = maximum_index;
     }
+*/
 
 /*
     cout<<"depth: "<<depth<<endl;
@@ -386,9 +395,10 @@ T* FK::Tree::col_to_array(cv::Mat *_data_, int index){
     return _array_;
 }
 
-float FK::Tree::Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts){
+void FK::Tree::Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS, int *return_counts){
     gini_calculation(_label_, length, class_number, BLOCKS, THREADS, return_counts);
 
+/*
     float purity = 0.0;
     for(int i = 0; i < class_number; i++){
         float class_prop = (float) return_counts[i] / length;
@@ -396,6 +406,15 @@ float FK::Tree::Gini_with_GPU(int *_label_, int length, int BLOCKS, int THREADS,
     }
 
     return 1 - purity;
+*/
+
+}
+
+float* FK::Tree::Ginis_with_GPU(int *_label_, int length, int THREADS, int *count){
+    float *_gini_ = (float *)malloc(length * sizeof(float));
+    ginis(_label_, count, length, class_number, THREADS, _gini_);
+
+    return _gini_;
 }
 
 float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int index, float *return_threshold, float *gain){
@@ -421,11 +440,27 @@ float FK::Tree::get_minimum_gini_with_GPU(cv::Mat *_data_, cv::Mat *_label_, int
 
     int counts[class_number] = {0};
     int threads = THREADS < GINI_BLOCK_SIZE_MAX ? THREADS : GINI_BLOCK_SIZE_MAX;
-    float original_gini = Gini_with_GPU(tmp_label, tmp_height, DEFAULT_BLOCKS, threads, counts);
+    Gini_with_GPU(tmp_label, tmp_height, DEFAULT_BLOCKS, threads, counts);
+    float *ginis = Ginis_with_GPU(tmp_label, tmp_height, threads, counts);
+    
+    int minimum_index = min_element(ginis, ginis + tmp_height) - ginis;
+    *return_threshold = tmp_data[minimum_index];
+    float minimum = ginis[minimum_index];
+    *gain = ginis[tmp_height - 1] - minimum;
 
-    scan();
+    return minimum;
+}
 
-    return 0.0;
+void FK::Tree::add_leaf(FK::Tree::TreeNode *root, cv::Mat *_label_){
+    int counts[class_number] = {0};
+    int tmp_height = _label_->size().height;
+    root->is_leaf = true;
+    for(int i = 0; i < tmp_height; i++){
+        _label_->at<int>(i, 0);
+        counts[_label_->at<int>(i, 0)]++;
+    }
+    int maximum_index = max_element(counts, counts + class_number) - counts;
+    root->classification = maximum_index;
 }
 
 FK::Tree::TreeNode* FK::Tree::BuildTree_with_GPU(int depth, cv::Mat *_data_, cv::Mat *_label_, bool with_cpu){
@@ -459,5 +494,35 @@ FK::Tree::TreeNode* FK::Tree::BuildTree_with_GPU(int depth, cv::Mat *_data_, cv:
         }
     }
 
+    root->Attribute = &features[feature_index];
+    root->index = feature_index;
+    root->is_leaf = false;
+    root->gain = _gain_;
+    root->threshold = return_threshold;
+
+    if(_gain_ < EPSILON){
+        add_leaf(root, _label_);
+    }
+
+    cv::Mat *first;
+    cv::Mat *second;
+    cv::Mat *first_label;
+    cv::Mat *second_label;
+
+    split_data(feature_index, return_threshold, _data_, _label_, &first, &second, &first_label, &second_label);
+
+    root->lch_index = BuildTree_with_GPU(depth + 1, first, first_label, with_cpu);
+    root->rch_index = BuildTree_with_GPU(depth + 1, second, second_label, with_cpu);
+
+    if((root->lch_index == NULL) && (root->rch_index == NULL)){
+        add_leaf(root, _label_);
+    }
+
     return root;
+}
+
+void FK::Tree::Learn_with_GPU(int max_depth, float epsilon, bool with_cpu){
+    MAX_DEPTH = max_depth;
+    EPSILON = epsilon;
+    root = BuildTree_with_GPU(1, &data, &label, with_cpu);
 }

@@ -3,8 +3,8 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define LEN 2048
-#define NUM 5
+#define LEN 1000
+#define NUM 2
 
 using namespace std;
 
@@ -13,6 +13,17 @@ void rand_array(int *arr, int length, int num, int *count){
     for(int i = 0; i < length; i++){
         arr[i] = rand() % num;
         count[arr[i]]++;
+    }
+}
+
+void rat_array(int *arr, int length){
+    for(int i = 0; i < length; i++){
+        if(i < (length / 2)){
+            arr[i] = 0;
+        }
+        else{
+            arr[i] = 1;
+        }
     }
 }
 
@@ -26,10 +37,28 @@ int main(){
         cout<<count[i]<<endl;
     }
 
-    int return_count[NUM] = {0};
-    gini_calculation(arr, LEN, NUM, 2, 1024, return_count);
+    int return_counts[NUM] = {0};
+    gini_calculation(arr, LEN, NUM, 3, 128, return_counts);
 
     for(int i = 0; i < NUM; i++){
-        cout<<return_count[i]<<endl;
+        cout<<return_counts[i]<<endl;
     }
+
+/*
+    for(int i = 0; i < LEN; i++){
+        arr[i] = 0;
+    }
+*/
+
+    rat_array(arr, LEN);
+    count[0] = LEN / 2;
+    count[1] = LEN - (LEN / 2);
+    float *return_ginis = (float *)malloc(LEN * sizeof(float));
+    ginis(arr, count, LEN, NUM, 128, return_ginis);
+
+    for(int i = 0; i < LEN; i++){
+        cout<<return_ginis[i]<<endl;
+    }
+
+    return 0;
 }

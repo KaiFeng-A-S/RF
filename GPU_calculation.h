@@ -7,4 +7,6 @@
 
 void gini_calculation(int *_label_, int whole_size, int _num_, int BLOCKS, int THREADS, int *return_counts);
 
+void ginis(int *_label_, int *count, int whole_size, int _num_, int THREADS, float *return_ginis);
+
 #endif
