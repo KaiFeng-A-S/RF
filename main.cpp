@@ -67,7 +67,7 @@ int main(){
     cout<<A<<endl;
 */
 
-    ifstream fin_X("/data/fengkai/GPGPU/s_X.csv");
+    ifstream fin_X("/data/fengkai/GPGPU/mb_X.csv");
     string line;
     vector<float *> datas;
     int num_1;
@@ -96,7 +96,7 @@ int main(){
     }
 */
 
-    ifstream fin_y("/data/fengkai/GPGPU/s_y.csv");
+    ifstream fin_y("/data/fengkai/GPGPU/mb_y.csv");
     vector<int *> labels;
     int num_2;
 
@@ -150,7 +150,9 @@ int main(){
     }
 */
 
-    tree.load_data(input_data, input_label, datas.size(), 2, 2, feature_names);
+    tree.load_data(input_data, input_label, datas.size(), 40, 2, feature_names);
+
+    cout<<"Load data finished"<<endl;
 
 /*
     cout<<tree.data<<endl;
@@ -184,7 +186,17 @@ int main(){
 
     cout<<"accuracy is: "<<acc<<endl;
 
-    tree.get_minimum_gini_with_GPU(&tree.data, &tree.label, 0, NULL, NULL);
+    tree.Learn_with_GPU(100, 0, true);
+
+    cout<<"Learn finished"<<endl;
+
+    predictions = tree.Predict(predict_data_, predict_label_);
+
+    cout<<"Predict finished"<<endl;
+
+    acc = accuracy_score(y_true, predictions, tmp_height, true);
+
+    cout<<"accuracy is: "<<acc<<endl;
 
     return 0;
 }

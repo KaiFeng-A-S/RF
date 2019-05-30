@@ -36,7 +36,7 @@ namespace FK{
               int MAX_DEPTH;
               int THRESHOLD_LENGTH;
               int THREADS;
-              int DEFAULT_BLOCKS;
+              //int DEFAULT_BLOCKS;
               float EPSILON;
 
               Tree(){
@@ -54,9 +54,9 @@ namespace FK{
 */
 
                   MAX_DEPTH = -1;
-                  THRESHOLD_LENGTH = 4096;
-                  THREADS = 32;
-                  DEFAULT_BLOCKS = 24;
+                  THRESHOLD_LENGTH = 65536;
+                  THREADS = 1024;
+                  //DEFAULT_BLOCKS = 24;
               }
 
 /*

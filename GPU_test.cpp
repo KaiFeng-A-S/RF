@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdlib.h>
 
-#define LEN 1000
+#define LEN 3
 #define NUM 2
 
 using namespace std;
